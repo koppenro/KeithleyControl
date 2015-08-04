@@ -12,7 +12,6 @@ class keithley:
         #Syntax: serial.Serial(port=None, baudrate=9600, bytesize=EIGHTBITS, parity=PARITY_NONE,
         #                      stopbits=STOPBITS_ONE, timeout=None, xonxoff=False, rtscts=False,
         #                      writeTimeout=None, dsrdtr=False, interCharTimeout=None)
-
         self.port = Serial('/dev/ttyS0', baudrate=57600, bytesize=8, parity=PARITY_ODD, xonxoff=True)
 
     def init(self):
@@ -22,15 +21,23 @@ class keithley:
 
         # Reset Keithley
         self.port.write("*RST\r\n");
-        # No voltage limit
+        # Disable hardware beeper
+        self.port.write(":SYST:BEEP:STAT OFF\r\n");
+        # Set voltage source to constant voltage output
+        self.port.write(":SOUR:VOLT:MODE FIX\r\n");
+        # Set output voltage to zero
         self.port.write(":SOUR:VOLT:IMM:AMPL 0\r\n");
+        # Set hardware compliance limit
+        self.port.write(":CURR:PROT:LEV 100E-6\r\n");
+        # Voltage output on rear panel plugs
+        self.port.write(":ROUT:TERM REAR\r\n");
 
     def setVoltage(self,voltage=0):
 
         # Set bias voltage
 
         if not isInt(voltage):
-            print "Wrong input"
+            print "Wrong input format, only integer numbers allowed"
         else:
             self.port.write(":SOUR:VOLT:IMM:AMPL %s\r\n" %(-abs(voltage)) )
             self.port.write(":OUTP:STAT 1\r\n")
@@ -39,17 +46,17 @@ class keithley:
 
         self.port.write(":READ?\r\n")
         line = self.port.readline()
-        splited = line.split(",")
+        splitted = line.split(",")
 
-        return splited[1]
+        return splitted[1]
 
     def readVoltage(self):
 
         self.port.write(":READ?\r\n")
         line = self.port.readline()
-        splited = line.split(",")
+        splitted = line.split(",")
 
-        return splited[0][1:]
+        return splitted[0][1:]
 
     def reset(self):
 
@@ -80,9 +87,11 @@ class keithley:
     def help(self):
 
         print "-h \t This page"
-        print "-e -r \t Close and reset Keithley connection"
-        print "-s xx \t Set voltage"
-        print "-rv -ri \t Read voltage / current"
+        print "-e \t Close Keithley connection"
+        #print "-r \t Reset Keithley connection"
+        print "-s xxx \t Set voltage to value -xxx (always negative)"
+        print "-rv \t Read voltage"
+        print "-rc \t Read current"
 
 def isInt(string):
 
@@ -98,7 +107,7 @@ def readMode(k):
         while True:
             current = k.readCurrent()
             print current
-            time.sleep(1)
+            time.sleep(3)
     except KeyboardInterrupt:
         print "\n\nReadMode closed!\n"
 
@@ -119,25 +128,30 @@ if __name__=='__main__':
 
         # Set voltage
         elif (sys.argv[1] == "-s"):
-
             k.init()
             k.setVoltage(float(sys.argv[2]))
 
         # Read voltage and current
-        elif (sys.argv[1] == "-ri"):
+        elif (sys.argv[1] == "-rc"):
             print k.readCurrent()
 
         elif (sys.argv[1] == "-rv"):
             print k.readVoltage()
 
+        # Reset
+        elif (sys.argv[1] == "-r"):
+            k.reset()
+            sys.exit("Resetted Keithley device")
+
         # Exit
-        elif (sys.argv[1] == "-e") or (sys.argv[1] == "-r"):
+        elif (sys.argv[1] == "-e"):
             k.close()
             sys.exit("Resetted and closed Keithley connection")
 
         # Exception
         else:
-            sys.exit("Parameter not found! See -h")
+            sys.exit("Parameter not found! Use -h for help")
+
 
     # Interactive loop
     else:
@@ -147,15 +161,15 @@ if __name__=='__main__':
 
         while(True):
 
-            command = raw_input("Set voltage (int), (r)ead Current, read Voltage (rv), (res)et Keithley, start ReadMode (rm), (e)xit\n")
+            command = raw_input("Set voltage (int), (r)ead Current, read Voltage (rv), (res)et Keithley, start ReadMode (rm), (e)xit Program\n")
 
             if(isInt(command)):
                 voltage = float(command)
                 k.setVoltage(voltage)
 
             elif (command == "res"):
-                print "\nReseted\n"
                 k.reset()
+                print "\nResetted Keithley device\n"
 
             elif (command == "r"):
                 current = k.readCurrent()
@@ -167,9 +181,10 @@ if __name__=='__main__':
 
             elif (command == "e"):
                 k.close()
-                sys.exit("\nBye\n")
+                sys.exit("\nBye.\n")
 
             elif (command == "rm"):
+                print "\nEntering ReadMode\n"
                 readMode(k)
 
             else:
