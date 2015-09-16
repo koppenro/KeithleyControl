@@ -27,17 +27,24 @@ class keithley:
         self.port.write(":SOUR:VOLT:MODE FIX\r\n");
         # Set output voltage to zero
         self.port.write(":SOUR:VOLT:IMM:AMPL 0\r\n");
-        # Set hardware compliance limit
-        self.port.write(":CURR:PROT:LEV 100E-6\r\n");
         # Voltage output on rear panel plugs
         self.port.write(":ROUT:TERM REAR\r\n");
+        # Set compliance to 100uA
+        self.port.write(":CURR:PROT:LEV 100E-6\r\n")
+
+    def setCompliance(self,complcurrent=0):
+
+        # Set hardware compliance limit
+        if not isInt(complcurrent):
+            print "Wrong input format, only integer numbers allowed for compliance limit (in uA)"
+        else:
+            self.port.write(":CURR:PROT:LEV %sE-6\r\n" %(complcurrent) )
 
     def setVoltage(self,voltage=0):
 
         # Set bias voltage
-
         if not isInt(voltage):
-            print "Wrong input format, only integer numbers allowed"
+            print "Wrong input format, only integer numbers allowed for voltage"
         else:
             self.port.write(":SOUR:VOLT:IMM:AMPL %s\r\n" %(-abs(voltage)) )
             self.port.write(":OUTP:STAT 1\r\n")
@@ -47,7 +54,6 @@ class keithley:
         self.port.write(":READ?\r\n")
         line = self.port.readline()
         splitted = line.split(",")
-
         return splitted[1]
 
     def readVoltage(self):
@@ -55,7 +61,6 @@ class keithley:
         self.port.write(":READ?\r\n")
         line = self.port.readline()
         splitted = line.split(",")
-
         return splitted[0][1:]
 
     def reset(self):
@@ -86,10 +91,15 @@ class keithley:
 
     def help(self):
 
-        print "-h \t This page"
-        print "-e \t Close Keithley connection"
-        #print "-r \t Reset Keithley connection"
-        print "-s xxx \t Set voltage to value -xxx (always negative)"
+        print "\nKeithley 2410 Commandline Control Program"
+        print "(c) 2015, IEKP Karlsruhe\n"
+
+        print "-h \t Print this help page"
+        print "-e \t Reset and close Keithley connection (exit)"
+        print "-r \t Reset Keithley connection"
+        print "-v x \t Enable output voltage and set to value -x, compliance limit 100 uA"
+        print "-s x y \t Enable output voltage, set to value -x and compliance limit to value y"
+        print "-c y \t Set compliance limit to value y (in uA)"
         print "-rv \t Read voltage"
         print "-rc \t Read current"
 
@@ -106,8 +116,8 @@ def readMode(k):
     try:
         while True:
             current = k.readCurrent()
-            print current
-            time.sleep(3)
+            print "   Current: " + current + " A"
+            time.sleep(5)
     except KeyboardInterrupt:
         print "\n\nReadMode closed!\n"
 
@@ -127,9 +137,19 @@ if __name__=='__main__':
             sys.exit()
 
         # Set voltage
-        elif (sys.argv[1] == "-s"):
+        elif (sys.argv[1] == "-v"):
             k.init()
             k.setVoltage(float(sys.argv[2]))
+
+        # Set voltage and compliance
+        elif (sys.argv[1] == "-s"):
+            k.init()
+            k.setCompliance(float(sys.argv[3]))
+            k.setVoltage(float(sys.argv[2]))
+
+        # Set compliance limit
+        elif (sys.argv[1] == "-c"):
+            k.setCompliance(float(sys.argv[2]))
 
         # Read voltage and current
         elif (sys.argv[1] == "-rc"):
@@ -141,16 +161,16 @@ if __name__=='__main__':
         # Reset
         elif (sys.argv[1] == "-r"):
             k.reset()
-            sys.exit("Resetted Keithley device")
+            sys.exit("Resetted Keithley device.")
 
         # Exit
         elif (sys.argv[1] == "-e"):
             k.close()
-            sys.exit("Resetted and closed Keithley connection")
+            sys.exit("Resetted and closed Keithley connection. Goodbye.")
 
         # Exception
         else:
-            sys.exit("Parameter not found! Use -h for help")
+            sys.exit("Invalid command line parameter! Use -h for help")
 
 
     # Interactive loop
@@ -159,33 +179,43 @@ if __name__=='__main__':
         # Set custom settings
         k.init()
 
+        print "\nKeithley 2410 Interactive Control Program"
+        print "(c) 2015, IEKP Karlsruhe\n"
+
         while(True):
 
-            command = raw_input("Set voltage (int), (r)ead Current, read Voltage (rv), (res)et Keithley, start ReadMode (rm), (e)xit Program\n")
+            command = raw_input("Available commands: \nset voltage (int), set (c)ompliance, (r)ead Current, read Voltage (rv), enter ReadMode (rm), (res)et Keithley, (e)xit Program\n")
 
             if(isInt(command)):
                 voltage = float(command)
                 k.setVoltage(voltage)
+                print "\n   Output voltage set to " + command + " V\n"
+
+            elif (command == "c"):
+                compl = raw_input('Enter compliance limit (in uA): ')
+                k.setCompliance(compl)
+                print "\n   Compliance limit set to " + compl + " uA\n"
 
             elif (command == "res"):
                 k.reset()
-                print "\nResetted Keithley device\n"
+                print "\n   Resetted Keithley device\n"
 
             elif (command == "r"):
                 current = k.readCurrent()
-                print "\n" + current + " A\n"
+                print "\n   Current: " + current + " A\n"
 
             elif (command == "rv"):
                 voltage = k.readVoltage()
-                print "\n" + voltage + " V\n"
+                print "\n   Voltage: " + voltage + " V\n"
 
             elif (command == "e"):
                 k.close()
-                sys.exit("\nBye.\n")
+                sys.exit("\nConnection closed. Goodbye.\n")
 
             elif (command == "rm"):
-                print "\nEntering ReadMode\n"
+                print "\nEntering ReadMode (press Ctrl+C to exit)\n"
                 readMode(k)
 
             else:
                 print "\nCommand not found!\n"
+
