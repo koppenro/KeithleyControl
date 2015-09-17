@@ -32,7 +32,7 @@ class keithley:
         # Set compliance to 100uA
         self.port.write(":CURR:PROT:LEV 100E-6\r\n")
 
-    def setCompliance(self,complcurrent=0):
+    def setCompliance(self,complcurrent=100):
 
         # Set hardware compliance limit
         if not isInt(complcurrent):
@@ -68,6 +68,8 @@ class keithley:
         # Set output: off
         # Clear error messages
         # Load Presettings
+        # Init custom settings
+
         self.port.write(":OUTP:STAT 0\r\n")
         self.port.write("*CLS\r\n")
         self.port.write(":SYST:PRES\r\n")
@@ -96,10 +98,8 @@ class keithley:
 
         print "-h \t Print this help page"
         print "-e \t Reset and close Keithley connection (exit)"
-        print "-r \t Reset Keithley connection"
-        print "-v x \t Enable output voltage and set to value -x, compliance limit 100 uA"
-        print "-s x y \t Enable output voltage, set to value -x and compliance limit to value y"
-        print "-c y \t Set compliance limit to value y (in uA)"
+        print "-res \t Reset Keithley connection"
+        print "-v x y=100 \t Enable output voltage, set to value -x and compliance limit to value y in uA (default: 100)"
         print "-rv \t Read voltage"
         print "-rc \t Read current"
 
@@ -136,15 +136,12 @@ if __name__=='__main__':
             k.help()
             sys.exit()
 
-        # Set voltage
+        # Set voltage and compliance
         elif (sys.argv[1] == "-v"):
             k.init()
-            k.setVoltage(float(sys.argv[2]))
-
-        # Set voltage and compliance
-        elif (sys.argv[1] == "-s"):
-            k.init()
-            k.setCompliance(float(sys.argv[3]))
+            if ( (len(sys.argv)>3)):
+                if isInt(sys.argv[3]):
+                    k.setCompliance(float(sys.argv[3]))
             k.setVoltage(float(sys.argv[2]))
 
         # Set compliance limit
@@ -159,7 +156,7 @@ if __name__=='__main__':
             print k.readVoltage()
 
         # Reset
-        elif (sys.argv[1] == "-r"):
+        elif (sys.argv[1] == "-res"):
             k.reset()
             sys.exit("Resetted Keithley device.")
 
